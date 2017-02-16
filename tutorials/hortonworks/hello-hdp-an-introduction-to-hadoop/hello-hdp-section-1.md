@@ -1,105 +1,81 @@
----
-layout: tutorial
-title: Hello HDP An Introduction to Hadoop with Hive and Pig
-tutorial-id: 100
-tutorial-series: Basic Development
-tutorial-version: hdp-2.4.0
-intro-page: false
-components: [ ambari, hive, pig, spark, zeppelin ]
----
 
-# Hadoop Tutorial – Getting Started with HDP
+[LAB 1 - LOADING SENSOR DATA INTO HDFS](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig/#section_3)の翻訳です。
 
-## Introduction
+# LAB 1 - LOADING SENSOR DATA INTO HDFS
 
-Hello World is often used by developers to familiarize themselves with new concepts by building a simple program. This tutorial aims to achieve a similar purpose by getting practitioners started with Hadoop and HDP. We will use an Internet of Things (IoT) use case to build your first HDP application.
+## INTRODUCTION
 
-This tutorial describes how to refine data for a Trucking IoT  [Data Discovery](http://hortonworks.com/solutions/advanced-analytic-apps/#data-discovery) (aka IoT Discovery) use case using the Hortonworks Data Platform. The IoT Discovery use cases involves vehicles, devices and people moving across a map or similar surface. Your analysis is targeted to linking location information with your analytic data.
+このセクションでは、センサデータをダウンロードし、Ambari User Viewを使用してHDFSにロードします。ファイルを管理するためにAmbari File User Viewを紹介します。Ambari File User Viewを用いるとディレクトリの作成、ファイルシステムのナビゲート、ファイルのHDFSへのアップロードなどのタスクを実行できます。さらに、他のファイル関連のタスクも実行することができます。最初にAmbari File User Viewの基礎を学習し、実際にAmbari File User Viewを用いて2つのディレクトリを作成し、2つのファイルをHDFSにロードしていきます。
 
-For our tutorial we are looking at a use case where we have a truck fleet. Each truck has been equipped to log location and event data. These events are streamed back to a datacenter where we will be processing the data.  The company wants to use this data to better understand risk.
+## PRE-REQUISITES
 
-Here is the video of [Analyzing Geolocation Data](http://youtu.be/n8fdYHoEEAM) to show you what you’ll be doing in this tutorial.
+このチュートリアルは、Hortonworks Sandboxを使用してHDPを始めるためのシリーズの一部です。このチュートリアルを進める前に、前提条件を満たしていることを確認してください。
 
-## Pre-Requisites:
+* Hortonworks Sandboxをダウンロードしインストールしておく
+* [Learning the Ropes of the Hortonworks Sandbox](http://hortonworks.com/hadoop-tutorial/learning-the-ropes-of-the-hortonworks-sandbox/) を読んでおく(オプション)
 
-*  Downloaded and Installed latest [Hortonworks Sandbox](http://hortonworks.com/products/hortonworks-sandbox/#install)
-*  Before entering hello HDP labs, we **highly recommend** you go through [Learning the Ropes of the Hortonworks Sandbox](http://hortonworks.com/hadoop-tutorial/learning-the-ropes-of-the-hortonworks-sandbox/) to become familiar with the Sandbox in a VM and the Ambari Interface.
+このチュートリアルを完了するのに20分ほどを要します。
 
-*   Data Set Used: [**Geolocation.zip**](https://app.box.com/HadoopCrashCourseData)
-*   ***Optional***: Hortonworks ODBC driver installed and configured – see the tutorial on installing the ODBC driver for Windows or OS X. Refer to
-    *   [Installing and Configuring the Hortonworks ODBC driver on Windows 7](http://hortonworks.com/hadoop-tutorial/how-to-install-and-configure-the-hortonworks-odbc-driver-on-windows-7/)
-    *   [Installing and Configuring the Hortonworks ODBC driver on Mac OS X](http://hortonworks.com/hadoop-tutorial/how-to-install-and-configure-the-hortonworks-odbc-driver-on-mac-os-x/)
-    *   Microsoft Excel 2013 Professional Plus is required for the Windows 7 or later installation to be able to construct the maps.
+## OUTLINE
 
+* HDFS backdrop
+* Step 1.1: Download data – Geolocation.zip
+* Step 1.2: Load Data into HDFS
+* Summary
+* Suggested Reading
 
-- In this tutorial, the Hortonworks Sandbox is installed on an Oracle VirtualBox virtual machine (VM) – your screens may be different.
+## HDFS BACKDROP
 
-- Install the ODBC driver that matches the version of Excel you are using (32-bit or 64-bit).
+1台の物理マシンでは、データが増加するにつれてそのストレージ容量が限界に達してしまいます。このデータ増加のために、データを別々のマシンに分割する必要があります。ネットワークのマシン間でデータのストレージを管理するこのタイプのファイルシステムは、分散ファイルシステムと呼ばれます。HDFSはApache Hadoopの中心的なコンポーネントであり、コモディティハードウェアのクラスタ上で実行されるストリーミングデータアクセスパターンを含む大きなファイルを格納するように設計されています。Hortonworks Data Platform HDP 2.2では、HDFSはクラスタ内で[heterogeneous storage](http://hortonworks.com/blog/heterogeneous-storage-policies-hdp-2-2/)(様々なストレージメディア)をサポートするように拡張されました。
 
-- We will use the Power View feature in Microsoft Excel 2013 to visualize the sensor data. Power View is currently only available in Microsoft Office Professional Plus and Microsoft Office 365 Professional Plus.
+## STEP 1.1: DOWNLOAD AND EXTRACT THE SENSOR DATA FILES
 
-- Note, other versions of Excel will work, but the visualizations will be limited to charts or graphs. You can also use other visualization tool, such as Zeppelin and Zoomdata.
+1. サンプルセンサーデータはここからダウンロードできます：[Geolocation.zip](https://app.box.com/HadoopCrashCourseData)
 
-## Tutorial Overview
+2. Geolocation.zipをダウンロードし、ファイルを展開します。 次のファイルを含むGeolocationフォルダが展開されます。
+  * geolocation.csv - これはトラックから収集されたジオロケーションデータです。トラックの場所、日付、時刻、イベントの種類、速度などを示すレコードが含まれています。
+  * trucks.csv - これはリレーショナルデータベースからエクスポートされたデータで、トラックモデル、運転手ID、トラックID、および集計されたマイレージ(燃費)に関する情報が含まれています。
 
-In this tutorial, we will provide the collected geolocation and truck data. We will import this data into HDFS and build derived tables in Hive. Then we will process the data using Pig, Hive and Spark. The processed data is then imported into Microsoft Excel where it can be visualized.
+## STEP 1.2: LOAD THE SENSOR DATA INTO HDFS
 
-To refine and analyze Geolocation data, we will:
+1. Ambariのダッシュボードに移動し、HDFS File Viewを開きます。ユーザー名ボタンの横にある9つの四角のボタンをクリックし、Files Viewを選択します。
+![Files  View](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/files_view_lab1.png)
 
-*   Review some Hadoop Fundamentals
-*   Download and extract the Geolocation data files.
-*   Load the captured data into the Hortonworks Sandbox.
-*   Run Hive, Pig and Spark scripts that compute truck mileage and driver risk factor.
-*   Access the refined sensor data with Microsoft Excel.
-*   Visualize the sensor data using Excel Power View, Zeppelin or Zoomdata.
+2. HDFSファイルシステムの一番上のルートから始まり、ログインしているユーザー（この場合はmaria_dev）がアクセス権を持っているすべてのファイルが表示されます。
+![Files  View](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/root_files_view_folder_lab1.png)
 
-## Goals of the Tutorial
+3. `/user/maria_dev`のディレクトリリンクをクリックして移動します。
 
-The goal of this tutorial is that you get familiar with the basics of following:
+4. 今回のユースケースで使用するデータをアップロードするためのデータディレクトリを作成しましょう。 ![New Folder](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/new_folder_icon_lab1.png)ボタンをクリックして、`maria_dev`ディレクトリ内にデータディレクトリを作成します。そして、`data`ディレクトリに移動します。
+![Add New Folder](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/add_new_folder_data_lab1.png)
 
-*   Hadoop and HDP
-*   Ambari File User Views and HDFS
-*   Ambari Hive User Views and Apache Hive
-*   Ambari Pig User Views and Apache Pig
-*   Apache Spark
-*   Data Visualization with Excel (Optional)
-*   Data Visualization with Zeppelin (Optional)
-*   Data Visualization with Zoomdata (Optional)
+### 1.2.1 UPLOAD GEOLOCATION AND TRUCKS CSV FILES TO DATA FOLDER
 
-## Outline
+5. 新しく作成したディレクトリパス`/user/maria_dev/data`にまだ移動していない場合は、そのフォルダに移動します。次に、![Upload](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/upload_icon_lab1.png)ボタンをクリックして、geolocation.csvとtrucks.csvをアップロードします。
 
-1.  Introduction
-2.  Pre-Requisites
-    1.  Data Set Used: [**Geolocation.zip**](https://app.box.com/HadoopCrashCourseData)
-    2.  Latest Hortonworks Sandbox Version
-    3.  Learning the Ropes of the Hortonworks Sandbox - Become familiar with your Sandbox and Ambari.
-3.  Tutorial Overview
-4.  Goals of the Tutorial (outcomes)
-5.  Hadoop Data Platform Concepts (New to Hadoop or HDP- Refer following)
-    1.  [Apache Hadoop and HDP](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig#section_2) (5 Pillars)
-    2.  [Apache Hadoop Distributed File System (HDFS)](http://hortonworks.com/hadoop/hdfs/)
-    3.  [Apache YARN](http://hortonworks.com/hadoop/yarn/)
-    4.  [Apache MapReduce](http://hortonworks.com/hadoop/mapreduce/)
-    5.  [Apache Hive](http://hortonworks.com/hadoop/hive/)
-    6.  [Apache Pig](http://hortonworks.com/hadoop/pig/)
-6.  **Get Started with HDP Labs**
+6. ファイルのアップロードウィンドウが表示され、雲の画像をクリックします。
+![Upload file ](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/upload_file_lab1.png)
 
-    1.  [Lab 1: Loading Sensor Data into HDFS](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig/#section_3)
-    2.  [Lab 2: Data Manipulation with Hive](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig/#section_4) (Ambari User Views)
-    3.  [Lab 3: Use Pig to compute Driver Risk Factor](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig#section_5)
-    4.  [Lab 4: Use Apache Spark to compute Driver Risk Factor](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig#section_6)
-    5.  [Lab 5: Optional Visualization and Reporting with Excel](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig#section_7)
-        1.  [Configuring ODBC driver](http://hortonworks.com/hadoop-tutorial/how-to-install-and-configure-the-hortonworks-odbc-driver-on-mac-os-x/)  (Mac and Windows)
-    6.  [Lab 6: Optional Visualization and Reporting with Zeppelin](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig#section_8)  
-    7.  [Lab 7: Optional Visualization and Reporting with Zoomdata](http://hortonworks.com/hadoop-tutorial/hello-world-an-introduction-to-hadoop-hcatalog-hive-and-pig#section_9)
-7.  **Next Steps/Try These**
-    1.  Practitioner Journey-  As a Hadoop Practitioner you can adopt following learning paths
-        *   Hadoop Developer - [Click Here!](http://hortonworks.com/products/hortonworks-sandbox/#tuts-developers)
-        *   Hadoop Administrator -[Click Here!](http://hortonworks.com/products/hortonworks-sandbox/#tuts-admins)
-        *   Data Scientist - [Click Here!](http://hortonworks.com/products/hortonworks-sandbox/#tuts-analysts)
-    2.  [Case Studies](http://hortonworks.com/industry/) – Learn how Hadoop is being used by various industries.
-8.  **References and Resources**
-    1.  [Hadoop - The Definitive Guide by O`Reilly](http://www.amazon.com/Hadoop-Definitive-Guide-Tom-White/dp/1491901632/ref=dp_ob_image_bk)
-    2.  [Hadoop for Dummies](http://www.amazon.com/Hadoop-Dummies-Dirk-deRoos/dp/1118607554/ref=sr_1_1?s=books&ie=UTF8&qid=1456105405&sr=1-1&keywords=hadoop+dummies)
-    3.  [Hadoop Crash Course slides-Hadoop Summit 2015](http://www.slideshare.net/Hadoop_Summit/hadoop-crash-course-workshop-at-hadoop-summit)
-    4.  [Hadoop Crash Course Workshop- Hadoop Summit 2015](https://www.youtube.com/watch?v=R-va7pZg7HM)
+7. 別のウィンドウが表示され流ので、2つのcsvファイルをダウンロードしたディレクトリに移動します。1回に1つのファイルを選択し、Openを押してアップロードを完了します。両方のファイルがアップロードされるまで、このプロセスを繰り返します。
+![File Navigator ](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/upload_file_window_lab1.png)
+両方のファイルがHDFSにアップロードされ、Files ViewのUIに表示されます。
+![File Views ](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/uploaded_files_lab1.png)
+ここでファイルやフォルダに対して、次の操作を実行することもできます： 開く、名前変更、権限変更、削除、コピー、移動、ダウンロード、ファイル連結
+
+### 1.2.2 SET WRITE PERMISSIONS TO WRITE TO DATA FOLDER
+
+8. ディレクトリパス`/user/maria_dev`に含まれている`data`フォルダをクリックします。[Permissions]をクリックします。下記の画像のように、すべてのWriteボックスがチェックされていることを確認してください（背景が青色になる）。
+
+![File Views ](https://raw.githubusercontent.com/hortonworks/tutorials/hdp-2.5/assets/hello-hdp/edit_permissions_lab1.png)
+
+## SUMMARY
+
+おめでとうございます！ このチュートリアルで得たスキルと知識を要約しましょう。Hadoop Distributed File System（HDFS）は、複数のマシン間でデータを管理するために構築されたものです。 そしてAmbariのHDFS Files Viewを使用することでHDFSにデータをアップロードすることができます。
+
+## SUGGESTED READING
+
+* [HDFS](http://hortonworks.com/apache/hdfs/)
+* [Manage Files on HDFS with Command Line: Hands-on Tutorial](http://hortonworks.com/hadoop-tutorial/using-commandline-manage-files-hdfs/)
+* [HDFS User Guide](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-hdfs/HdfsUserGuide.html)
+* Build your HDFS Architecture Knowledge [HDFS Architecture Guide](https://hadoop.apache.org/docs/r1.0.4/hdfs_design.html)
+* [HDP OPERATIONS: HADOOP ADMINISTRATION](http://hortonworks.com/training/class/hdp-operations-hadoop-administration-1/)
